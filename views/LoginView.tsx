@@ -69,6 +69,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold text-blue-800">Sistem Akademik Terpadu</h1>
           <p className="text-gray-600 mt-2">Portal Pendaftaran Tugas Akhir & Magang</p>
+          <p className="text-xs text-gray-400 mt-1">v2.0 (Supabase Auth Enabled)</p>
         </div>
 
         <Card title={isRegistering ? "Daftar Akun Baru" : "Silahkan Login"}>
