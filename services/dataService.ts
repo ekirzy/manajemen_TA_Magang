@@ -18,44 +18,92 @@ class DataStore {
 
   // --- Auth & User ---
 
+  // --- Auth & User ---
+
   async login(role: UserRole): Promise<User | null> {
-    // For demo purposes, we pick a default user based on role
-    // In a real app, this would use supabase.auth.signInWithPassword
-
-    let identifier = role === UserRole.STUDENT ? '20204321' : '19800101';
-
-    // Try to fetch user from DB
-    const { data, error } = await supabase
-      .from('users')
-      .select('*')
-      .eq('role', role)
-      .limit(1)
-      .single();
-
-    if (data) {
-      this.currentUser = data as User;
-    } else {
-      // Fallback/Seed if not exists (Auto-create for demo convenience)
-      const newUser: User = {
-        id: crypto.randomUUID(),
-        name: role === UserRole.STUDENT ? 'Ahmad Mahasiswa' : 'Dr. Budi Santoso',
-        role: role,
-        identifier: identifier
-      };
-
-      const { error: insertError } = await supabase.from('users').insert(newUser);
-      if (!insertError) {
-        this.currentUser = newUser;
-      } else {
-        console.error("Login/Seed error:", insertError);
-        return null;
-      }
-    }
+    // This is kept for legacy/demo compatibility if needed, 
+    // but UI should now call loginWithPassword or loginWithOAuth
     return this.currentUser;
   }
 
-  logout() {
+  async loginWithPassword(email: string, pass: string): Promise<{ user: User | null, error: any }> {
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password: pass
+    });
+
+    if (error) return { user: null, error };
+
+    if (data.user) {
+      // Fetch additional user info if needed, or construct User object
+      // For now, we map Supabase user to our User type
+      this.currentUser = {
+        id: data.user.id,
+        name: data.user.user_metadata.full_name || data.user.email?.split('@')[0] || 'User',
+        role: (data.user.user_metadata.role as UserRole) || UserRole.STUDENT,
+        identifier: data.user.user_metadata.identifier || '-'
+      };
+      return { user: this.currentUser, error: null };
+    }
+    return { user: null, error: 'No user data' };
+  }
+
+  async register(email: string, pass: string, fullName: string, role: UserRole, identifier: string): Promise<{ user: User | null, error: any }> {
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password: pass,
+      options: {
+        data: {
+          full_name: fullName,
+          role: role,
+          identifier: identifier
+        }
+      }
+    });
+
+    if (error) return { user: null, error };
+
+    if (data.user) {
+      // Note: If email confirmation is enabled, user might not be logged in immediately
+      this.currentUser = {
+        id: data.user.id,
+        name: fullName,
+        role: role,
+        identifier: identifier
+      };
+      return { user: this.currentUser, error: null };
+    }
+    return { user: null, error: 'Registration successful but no user returned (check email confirmation)' };
+  }
+
+  async loginWithGoogle() {
+    const { data, error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: window.location.origin // Redirect back to app
+      }
+    });
+    return { data, error };
+  }
+
+  async logout() {
+    await supabase.auth.signOut();
     this.currentUser = null;
+  }
+
+  async fetchCurrentUser(): Promise<User | null> {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      this.currentUser = {
+        id: user.id,
+        name: user.user_metadata.full_name || user.email?.split('@')[0] || 'User',
+        role: (user.user_metadata.role as UserRole) || UserRole.STUDENT,
+        identifier: user.user_metadata.identifier || '-'
+      };
+      return this.currentUser;
+    }
+    this.currentUser = null;
+    return null;
   }
 
   getCurrentUser() {

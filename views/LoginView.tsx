@@ -9,22 +9,58 @@ interface LoginViewProps {
 
 export const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
   const [loading, setLoading] = useState(false);
+  const [isRegistering, setIsRegistering] = useState(false);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [fullName, setFullName] = useState('');
+  const [identifier, setIdentifier] = useState(''); // NIM or NIP
+  const [role, setRole] = useState<UserRole>(UserRole.STUDENT);
 
-  const handleLogin = async (role: UserRole) => {
+  const handleEmailLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
     setLoading(true);
     try {
-      const user = await dataService.login(role);
+      const { user, error } = await dataService.loginWithPassword(email, password);
       if (user) {
         onLogin();
       } else {
-        alert("Login failed. Please try again.");
+        alert(error?.message || "Login failed.");
       }
     } catch (error) {
       console.error("Login error:", error);
-      alert("An error occurred during login.");
+      alert("An error occurred.");
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleRegister = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      const { user, error } = await dataService.register(email, password, fullName, role, identifier);
+      if (user) {
+        alert("Registration successful! You can now login.");
+        setIsRegistering(false);
+      } else {
+        alert(error?.message || "Registration failed.");
+      }
+    } catch (error) {
+      console.error("Register error:", error);
+      alert("An error occurred.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleGoogleLogin = async () => {
+    setLoading(true);
+    const { error } = await dataService.loginWithGoogle();
+    if (error) {
+      alert("Google Login failed: " + error.message);
+      setLoading(false);
+    }
+    // Redirect happens automatically
   };
 
   return (
@@ -35,45 +71,105 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
           <p className="text-gray-600 mt-2">Portal Pendaftaran Tugas Akhir & Magang</p>
         </div>
 
-        <Card title="Silahkan Login">
+        <Card title={isRegistering ? "Daftar Akun Baru" : "Silahkan Login"}>
           <div className="space-y-4">
-            <p className="text-sm text-gray-500 mb-4 text-center">Pilih peran untuk simulasi login:</p>
 
-            <button
-              onClick={() => handleLogin(UserRole.STUDENT)}
-              disabled={loading}
-              className="w-full flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-blue-50 hover:border-blue-300 transition-all group disabled:opacity-50"
-            >
-              <div className="flex items-center">
-                <div className="h-10 w-10 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center font-bold mr-3">
-                  M
+            {/* Google Login Button */}
+            {!isRegistering && (
+              <>
+                <button
+                  onClick={handleGoogleLogin}
+                  disabled={loading}
+                  className="w-full flex items-center justify-center p-3 border border-gray-300 rounded-lg hover:bg-gray-50 transition-all disabled:opacity-50 bg-white text-gray-700 font-medium"
+                >
+                  <img src="https://www.svgrepo.com/show/475656/google-color.svg" className="w-5 h-5 mr-3" alt="Google" />
+                  Login with Google
+                </button>
+
+                <div className="relative flex py-2 items-center">
+                  <div className="flex-grow border-t border-gray-300"></div>
+                  <span className="flex-shrink-0 mx-4 text-gray-400 text-xs">OR</span>
+                  <div className="flex-grow border-t border-gray-300"></div>
                 </div>
-                <div className="text-left">
-                  <div className="font-semibold text-gray-900 group-hover:text-blue-700">Mahasiswa</div>
-                  <div className="text-xs text-gray-500">Akses pendaftaran & upload berkas</div>
-                </div>
+              </>
+            )}
+
+            <form onSubmit={isRegistering ? handleRegister : handleEmailLogin} className="space-y-4">
+              {isRegistering && (
+                <>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Nama Lengkap</label>
+                    <input
+                      type="text"
+                      required
+                      className="w-full p-2 border border-gray-300 rounded focus:ring-blue-500 focus:border-blue-500"
+                      value={fullName}
+                      onChange={e => setFullName(e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Peran</label>
+                    <select
+                      className="w-full p-2 border border-gray-300 rounded focus:ring-blue-500 focus:border-blue-500"
+                      value={role}
+                      onChange={e => setRole(e.target.value as UserRole)}
+                    >
+                      <option value={UserRole.STUDENT}>Mahasiswa</option>
+                      <option value={UserRole.LECTURER}>Dosen</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">{role === UserRole.STUDENT ? 'NIM' : 'NIP'}</label>
+                    <input
+                      type="text"
+                      required
+                      className="w-full p-2 border border-gray-300 rounded focus:ring-blue-500 focus:border-blue-500"
+                      value={identifier}
+                      onChange={e => setIdentifier(e.target.value)}
+                    />
+                  </div>
+                </>
+              )}
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                <input
+                  type="email"
+                  required
+                  className="w-full p-2 border border-gray-300 rounded focus:ring-blue-500 focus:border-blue-500"
+                  value={email}
+                  onChange={e => setEmail(e.target.value)}
+                />
               </div>
-              <span className="text-gray-400 group-hover:text-blue-500">→</span>
-            </button>
 
-            <button
-              onClick={() => handleLogin(UserRole.LECTURER)}
-              disabled={loading}
-              className="w-full flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-purple-50 hover:border-purple-300 transition-all group disabled:opacity-50"
-            >
-              <div className="flex items-center">
-                <div className="h-10 w-10 bg-purple-100 text-purple-600 rounded-full flex items-center justify-center font-bold mr-3">
-                  D
-                </div>
-                <div className="text-left">
-                  <div className="font-semibold text-gray-900 group-hover:text-purple-700">Dosen / Kaprodi</div>
-                  <div className="text-xs text-gray-500">Validasi & Penjadwalan Sidang</div>
-                </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
+                <input
+                  type="password"
+                  required
+                  className="w-full p-2 border border-gray-300 rounded focus:ring-blue-500 focus:border-blue-500"
+                  value={password}
+                  onChange={e => setPassword(e.target.value)}
+                />
               </div>
-              <span className="text-gray-400 group-hover:text-purple-500">→</span>
-            </button>
 
-            {loading && <p className="text-center text-sm text-blue-600">Logging in...</p>}
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full bg-blue-600 text-white p-3 rounded-lg hover:bg-blue-700 transition-colors font-medium disabled:opacity-50"
+              >
+                {loading ? 'Processing...' : (isRegistering ? 'Daftar' : 'Login')}
+              </button>
+            </form>
+
+            <div className="text-center mt-4">
+              <button
+                onClick={() => setIsRegistering(!isRegistering)}
+                className="text-sm text-blue-600 hover:underline"
+              >
+                {isRegistering ? 'Sudah punya akun? Login' : 'Belum punya akun? Daftar'}
+              </button>
+            </div>
           </div>
         </Card>
       </div>

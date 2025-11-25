@@ -3,21 +3,49 @@ import { ThesisView } from './views/ThesisView';
 import { InternshipView } from './views/InternshipView';
 import { LoginView } from './views/LoginView';
 import { dataService } from './services/dataService';
+import { supabase } from './services/supabaseClient';
 import { UserRole } from './types';
 
 const App: React.FC = () => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [currentView, setCurrentView] = useState<'thesis' | 'internship'>('thesis');
-  const user = dataService.getCurrentUser();
+  const [user, setUser] = useState(dataService.getCurrentUser());
+
+  React.useEffect(() => {
+    // Check initial session
+    dataService.fetchCurrentUser().then((u) => {
+      setUser(u);
+      setIsAuthenticated(!!u);
+    });
+
+    // Listen for changes
+    const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (event === 'SIGNED_IN' && session) {
+        const u = await dataService.fetchCurrentUser();
+        setUser(u);
+        setIsAuthenticated(true);
+      } else if (event === 'SIGNED_OUT') {
+        setUser(null);
+        setIsAuthenticated(false);
+      }
+    });
+
+    return () => {
+      authListener.subscription.unsubscribe();
+    };
+  }, []);
 
   const handleLogin = () => {
-    setIsAuthenticated(true);
+    // This might be redundant if onAuthStateChange handles it, but good for manual triggers if needed
+    const u = dataService.getCurrentUser();
+    setUser(u);
+    setIsAuthenticated(!!u);
     setCurrentView('thesis');
   };
 
-  const handleLogout = () => {
-    dataService.logout();
-    setIsAuthenticated(false);
+  const handleLogout = async () => {
+    await dataService.logout();
+    // State update handled by onAuthStateChange
   };
 
   if (!isAuthenticated || !user) {
@@ -34,22 +62,20 @@ const App: React.FC = () => {
         <nav className="flex-1 p-4 space-y-1">
           <button
             onClick={() => setCurrentView('thesis')}
-            className={`w-full flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-colors ${
-              currentView === 'thesis' 
-                ? 'bg-blue-50 text-blue-700' 
-                : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'
-            }`}
+            className={`w-full flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-colors ${currentView === 'thesis'
+              ? 'bg-blue-50 text-blue-700'
+              : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'
+              }`}
           >
             <span className="mr-3">🎓</span> {user.role === UserRole.STUDENT ? 'Tugas Akhir' : 'Validasi Tugas Akhir'}
           </button>
-          
+
           <button
             onClick={() => setCurrentView('internship')}
-            className={`w-full flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-colors ${
-              currentView === 'internship' 
-                ? 'bg-blue-50 text-blue-700' 
-                : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'
-            }`}
+            className={`w-full flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-colors ${currentView === 'internship'
+              ? 'bg-blue-50 text-blue-700'
+              : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'
+              }`}
           >
             <span className="mr-3">🏢</span> {user.role === UserRole.STUDENT ? 'Magang / KP' : 'Validasi Magang'}
           </button>
@@ -75,12 +101,12 @@ const App: React.FC = () => {
 
       {/* Mobile Header */}
       <div className="md:hidden fixed top-0 w-full bg-white border-b border-gray-200 z-20 px-4 h-16 flex items-center justify-between">
-         <h1 className="text-lg font-bold text-blue-600">SAT Portal</h1>
-         <div className="flex space-x-2">
-            <button onClick={() => setCurrentView('thesis')} className={`p-2 rounded ${currentView === 'thesis' ? 'bg-blue-100 text-blue-600' : 'text-gray-600'}`}>🎓</button>
-            <button onClick={() => setCurrentView('internship')} className={`p-2 rounded ${currentView === 'internship' ? 'bg-blue-100 text-blue-600' : 'text-gray-600'}`}>🏢</button>
-            <button onClick={handleLogout} className="p-2 text-red-600">🚪</button>
-         </div>
+        <h1 className="text-lg font-bold text-blue-600">SAT Portal</h1>
+        <div className="flex space-x-2">
+          <button onClick={() => setCurrentView('thesis')} className={`p-2 rounded ${currentView === 'thesis' ? 'bg-blue-100 text-blue-600' : 'text-gray-600'}`}>🎓</button>
+          <button onClick={() => setCurrentView('internship')} className={`p-2 rounded ${currentView === 'internship' ? 'bg-blue-100 text-blue-600' : 'text-gray-600'}`}>🏢</button>
+          <button onClick={handleLogout} className="p-2 text-red-600">🚪</button>
+        </div>
       </div>
 
       {/* Main Content */}
@@ -93,7 +119,7 @@ const App: React.FC = () => {
                   {user.role === UserRole.STUDENT ? 'Manajemen Tugas Akhir' : 'Validasi Tugas Akhir & Sidang'}
                 </h2>
                 <p className="text-gray-500 mt-1">
-                   {user.role === UserRole.STUDENT ? 'Pendaftaran pembimbing, seminar, dan sidang.' : 'Daftar mahasiswa yang mengajukan proposal dan sidang.'}
+                  {user.role === UserRole.STUDENT ? 'Pendaftaran pembimbing, seminar, dan sidang.' : 'Daftar mahasiswa yang mengajukan proposal dan sidang.'}
                 </p>
               </div>
               <ThesisView />
@@ -101,7 +127,7 @@ const App: React.FC = () => {
           )}
 
           {currentView === 'internship' && (
-             <div>
+            <div>
               <div className="mb-6">
                 <h2 className="text-2xl font-bold text-gray-900">
                   {user.role === UserRole.STUDENT ? 'Kerja Praktik / Magang' : 'Validasi Kerja Praktik'}
