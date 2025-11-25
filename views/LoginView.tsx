@@ -14,7 +14,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
   const [identifier, setIdentifier] = useState(''); // NIM or NIP
-  const [role, setRole] = useState<UserRole>(UserRole.STUDENT);
+  const [role] = useState<UserRole>(UserRole.STUDENT);
 
   const handleEmailLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -109,18 +109,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Peran</label>
-                    <select
-                      className="w-full p-2 border border-gray-300 rounded focus:ring-blue-500 focus:border-blue-500"
-                      value={role}
-                      onChange={e => setRole(e.target.value as UserRole)}
-                    >
-                      <option value={UserRole.STUDENT}>Mahasiswa</option>
-                      <option value={UserRole.LECTURER}>Dosen</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">{role === UserRole.STUDENT ? 'NIM' : 'NIP'}</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">NIM</label>
                     <input
                       type="text"
                       required
